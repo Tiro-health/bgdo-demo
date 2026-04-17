@@ -1178,11 +1178,26 @@
         const ff = pip.document.getElementById('capture-form');
         if (ff) Object.assign(ff.style, { flex: '1', minHeight: '0', overflow: 'auto' });
 
+        // Moving the element disconnects/reconnects the custom element, which causes
+        // the SDK's React app to unmount. Re-setting the questionnaire attribute forces
+        // a fresh mount and questionnaire load in the PiP document.
+        const q = ff?.getAttribute('questionnaire');
+        if (ff && q) {
+          ff.removeAttribute('questionnaire');
+          setTimeout(() => ff.setAttribute('questionnaire', q), 20);
+        }
+
         pip.addEventListener('pagehide', () => {
           colFormInner.appendChild(pipContentSlot);
-          // Reset any inline styles added for PiP
-          const ff2 = colFormInner.querySelector('#capture-form');
-          if (ff2) ff2.style.cssText = '';
+          const ff2 = document.getElementById('capture-form');
+          if (ff2) {
+            ff2.style.cssText = '';
+            const q2 = ff2.getAttribute('questionnaire');
+            if (q2) {
+              ff2.removeAttribute('questionnaire');
+              setTimeout(() => ff2.setAttribute('questionnaire', q2), 20);
+            }
+          }
         });
       } catch (err) {
         showToast('PiP kon niet worden geopend: ' + (err.message || 'onbekende fout'));
