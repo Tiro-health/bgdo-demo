@@ -470,6 +470,7 @@
       align-items: center;
     }
     .row-delete-btn:hover { color: var(--danger); background: #fef2f2; }
+    .row-delete-btn svg { pointer-events: none; }
 
     /* ── Add questionnaire modal ── */
     .modal-overlay {
@@ -716,11 +717,16 @@
           name: 'BGDOConsultatie',
           resource: 'QuestionnaireResponse',
           select: [
-            { column: [{ path: 'id', name: 'id' }] },
             { column: [{ path: 'authored', name: 'authored' }] },
             { column: [{ path: "extension.where(url='http://hl7.org/fhir/StructureDefinition/firstCreated').value", name: 'aangemaakt' }] },
           ],
         },
+      },
+      {
+        id: 'bgdo-2',
+        name: 'BGDO Observatieblad',
+        code: 'OBS',
+        url: 'http://templates.tiro.health/templates/7a30ef87233a40aabf982b71dadbaef7',
       },
     ];
 
@@ -1046,9 +1052,9 @@
           const rows = records.map(qr => {
             try {
               const result = window.sof.runViewDefinition(vd, [qr]);
-              const row = result[0] || {};
-              row['ID'] = qr._entryId || row.id || qr.id || '';
-              return row;
+              const sofRow = result[0] || {};
+              delete sofRow.id;
+              return { ID: qr._entryId || qr.id || '', ...sofRow };
             } catch {
               return extractGenericRow(qr);
             }
@@ -1093,7 +1099,7 @@
       tableHead.innerHTML = `<tr><th style="width:36px"></th>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
       tableBody.innerHTML = records.map((record, idx) => {
         const row = rows[idx];
-        const entryId = record._entryId || record.id || idx;
+        const entryId = record._entryId || record.id || String(idx);
         return `<tr data-entry-id="${escapeHtml(String(entryId))}">
           <td><button class="row-delete-btn" title="Verwijder record">${trashIcon}</button></td>
           ${cols.map(c => `<td title="${escapeHtml(String(row[c] ?? ''))}">${escapeHtml(String(row[c] ?? ''))}</td>`).join('')}
@@ -1106,12 +1112,13 @@
     tableBody.addEventListener('click', (e) => {
       const btn = e.target.closest('.row-delete-btn');
       if (!btn) return;
-      const row = btn.closest('tr');
-      const entryId = row?.dataset.entryId;
+      const tr = btn.closest('tr');
+      const entryId = tr?.dataset.entryId;
       if (!entryId) return;
       const qsId = datasetQsSelect.value || activeQuestionnaireId;
-      const records = getRecords(qsId).filter(r => String(r._entryId || r.id) !== entryId);
-      saveRecords(qsId, records);
+      const allRecs = getRecords(qsId);
+      const filtered = allRecs.filter((r, i) => (r._entryId || r.id || String(i)) !== entryId);
+      saveRecords(qsId, filtered);
       updateBadge();
       renderDataTable();
     });
