@@ -1172,19 +1172,30 @@
           display: 'flex', flexDirection: 'column', background: '#fff', overflow: 'hidden',
         });
 
+        // Save the SDK's adoptedStyleSheets before the element is moved —
+        // they become invalid after document adoption and must be re-applied.
+        const savedSheets = [...(captureForm.shadowRoot?.adoptedStyleSheets ?? [])];
+
         pip.document.body.appendChild(pipContentSlot);
 
         // tiro-form-filler fills the PiP window
         const ff = pip.document.getElementById('capture-form');
         if (ff) Object.assign(ff.style, { flex: '1', minHeight: '0', overflow: 'auto' });
 
-        // Moving the element disconnects/reconnects the custom element, which causes
-        // the SDK's React app to unmount. Re-setting the questionnaire attribute forces
-        // a fresh mount and questionnaire load in the PiP document.
+        // Toggle questionnaire to force React re-mount in the PiP document,
+        // then re-apply the saved Tailwind adoptedStyleSheets.
         const q = ff?.getAttribute('questionnaire');
         if (ff && q) {
           ff.removeAttribute('questionnaire');
-          setTimeout(() => ff.setAttribute('questionnaire', q), 20);
+          setTimeout(() => {
+            ff.setAttribute('questionnaire', q);
+            // Re-apply sheets after React mounts its shadow root
+            setTimeout(() => {
+              if (ff.shadowRoot && savedSheets.length) {
+                ff.shadowRoot.adoptedStyleSheets = savedSheets;
+              }
+            }, 300);
+          }, 20);
         }
 
         pip.addEventListener('pagehide', () => {
@@ -1192,10 +1203,18 @@
           const ff2 = document.getElementById('capture-form');
           if (ff2) {
             ff2.style.cssText = '';
+            const savedSheets2 = [...(ff2.shadowRoot?.adoptedStyleSheets ?? [])];
             const q2 = ff2.getAttribute('questionnaire');
             if (q2) {
               ff2.removeAttribute('questionnaire');
-              setTimeout(() => ff2.setAttribute('questionnaire', q2), 20);
+              setTimeout(() => {
+                ff2.setAttribute('questionnaire', q2);
+                setTimeout(() => {
+                  if (ff2.shadowRoot && savedSheets2.length) {
+                    ff2.shadowRoot.adoptedStyleSheets = savedSheets2;
+                  }
+                }, 300);
+              }, 20);
             }
           }
         });
