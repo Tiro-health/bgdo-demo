@@ -1172,9 +1172,11 @@
           display: 'flex', flexDirection: 'column', background: '#fff', overflow: 'hidden',
         });
 
-        // Save the SDK's adoptedStyleSheets before the element is moved —
-        // they become invalid after document adoption and must be re-applied.
-        const savedSheets = [...(captureForm.shadowRoot?.adoptedStyleSheets ?? [])];
+        // Extract CSS text from adoptedStyleSheets before moving —
+        // Chrome drops cross-document adopted sheets so we re-inject as a <style> element.
+        const sdkCss = [...(captureForm.shadowRoot?.adoptedStyleSheets ?? [])]
+          .flatMap(s => { try { return [...s.cssRules].map(r => r.cssText); } catch { return []; } })
+          .join('\n');
 
         pip.document.body.appendChild(pipContentSlot);
 
@@ -1182,19 +1184,30 @@
         const ff = pip.document.getElementById('capture-form');
         if (ff) Object.assign(ff.style, { flex: '1', minHeight: '0', overflow: 'auto' });
 
-        // Toggle questionnaire to force React re-mount in the PiP document,
-        // then re-apply the saved Tailwind adoptedStyleSheets.
+        // Helper: inject saved CSS into the shadow root as a <style> element.
+        // Uses a MutationObserver so it re-injects if the SDK clears the shadow root on re-mount.
+        const injectSdkCss = (shadow) => {
+          if (!sdkCss || !shadow) return;
+          if (shadow.querySelector('style[data-pip-css]')) return;
+          const s = pip.document.createElement('style');
+          s.setAttribute('data-pip-css', '');
+          s.textContent = sdkCss;
+          shadow.insertBefore(s, shadow.firstChild);
+        };
+
+        // Toggle questionnaire to force React re-mount in the PiP document.
         const q = ff?.getAttribute('questionnaire');
         if (ff && q) {
           ff.removeAttribute('questionnaire');
           setTimeout(() => {
             ff.setAttribute('questionnaire', q);
-            // Re-apply sheets after React mounts its shadow root
-            setTimeout(() => {
-              if (ff.shadowRoot && savedSheets.length) {
-                ff.shadowRoot.adoptedStyleSheets = savedSheets;
-              }
-            }, 300);
+            // Watch the shadow root: re-inject CSS whenever the SDK re-mounts React.
+            if (ff.shadowRoot) {
+              const obs = new MutationObserver(() => injectSdkCss(ff.shadowRoot));
+              obs.observe(ff.shadowRoot, { childList: true, subtree: false });
+              injectSdkCss(ff.shadowRoot);
+              pip.addEventListener('pagehide', () => obs.disconnect(), { once: true });
+            }
           }, 20);
         }
 
@@ -1203,18 +1216,10 @@
           const ff2 = document.getElementById('capture-form');
           if (ff2) {
             ff2.style.cssText = '';
-            const savedSheets2 = [...(ff2.shadowRoot?.adoptedStyleSheets ?? [])];
             const q2 = ff2.getAttribute('questionnaire');
             if (q2) {
               ff2.removeAttribute('questionnaire');
-              setTimeout(() => {
-                ff2.setAttribute('questionnaire', q2);
-                setTimeout(() => {
-                  if (ff2.shadowRoot && savedSheets2.length) {
-                    ff2.shadowRoot.adoptedStyleSheets = savedSheets2;
-                  }
-                }, 300);
-              }, 20);
+              setTimeout(() => ff2.setAttribute('questionnaire', q2), 20);
             }
           }
         });
