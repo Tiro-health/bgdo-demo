@@ -290,11 +290,20 @@
       gap: 0.625rem;
     }
 
-    /* Only style border-radius — let SDK control all other sizing/overflow */
     .tiro-content-editable-container {
       border-radius: 0.5rem !important;
       flex: 1;
       min-height: 0;
+      overflow-y: auto !important;
+    }
+
+    tiro-magic-clipboard .editor-scroller {
+      min-height: 100%;
+    }
+
+    /* Override SDK's 300px max-height cap on the editor */
+    tiro-magic-clipboard .ContentEditable__root {
+      max-height: 100% !important;
     }
 
     /* Placeholder text for the ContentEditable when empty */
@@ -621,7 +630,7 @@
               <tiro-form-filler
                 id="capture-form"
                 sdc-endpoint-address="https://sdc.tiro.health/fhir/r5"
-                questionnaire="http://templates.tiro.health/templates/e40bd6a47f4e4d5ba0cea3da4617cee0|1.0.0"
+                questionnaire="http://templates.tiro.health/templates/e40bd6a47f4e4d5ba0cea3da4617cee0"
                 compact-grouping
               ></tiro-form-filler>
             </div>
@@ -692,7 +701,7 @@
         id: 'bgdo',
         name: 'BGDO MOC Formulier',
         code: 'BGDO',
-        url: 'http://templates.tiro.health/templates/e40bd6a47f4e4d5ba0cea3da4617cee0|1.0.0',
+        url: 'http://templates.tiro.health/templates/e40bd6a47f4e4d5ba0cea3da4617cee0',
         viewDefinition: {
           resourceType: 'ViewDefinition',
           name: 'BGDOConsultatie',
