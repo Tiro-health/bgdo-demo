@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BGDO Demo</title>
+
+  <!-- SheetJS -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <!-- SQL-on-FHIR v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sof-js@latest/dist/index.umd.js"></script>
+
+  <!-- Open Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Ensure [hidden] always wins over display:flex rules */
+    [hidden] { display: none !important; }
+
+    :root {
+      --bg:         #e8ecf2;
+      --surface:    #ffffff;
+      --navy:       #0d2137;
+      --blue:       #2d7bf4;
+      --border:     #dde3ec;
+      --text:       #1e293b;
+      --text-muted: #64748b;
+      --text-faint: #94a3b8;
+      --success:    #16a34a;
+      --danger:     #dc2626;
+      --radius:     0.625rem;
+      font-family: "Open Sans", sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      height: 56px;
+      background: var(--navy);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding: 0 1.25rem;
+      gap: 0.75rem;
+    }
+
+    .header__logo {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+
+    .header__logo img { height: 24px; filter: brightness(0) invert(1); }
+
+    .header__title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -0.01em;
+    }
+
+    .header__subtitle {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      margin-left: 0.25rem;
+    }
+
+    /* ── Tab nav ── */
+    .tab-nav {
+      height: 44px;
+      background: var(--navy);
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-end;
+      padding: 0 1.25rem;
+      gap: 0.25rem;
+      border-top: 1px solid rgba(255,255,255,0.07);
+    }
+
+    .tab-btn {
+      height: 36px;
+      padding: 0 1rem;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.52);
+      background: transparent;
+      border-radius: 6px 6px 0 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .tab-btn.active {
+      background: var(--bg);
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .tab-btn:hover:not(.active) {
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .tab-btn.active .badge {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    /* ── Main ── */
+    main.main {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Panels ── */
+    .panel {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem 1.25rem;
+      gap: 0.875rem;
+    }
+
+    /* ── Toolbar row ── */
+    .toolbar-row {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      flex-shrink: 0;
+    }
+
+    .toolbar-row select {
+      height: 34px;
+      padding: 0 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 200px;
+    }
+
+    .toolbar-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .entry-id-chip {
+      height: 34px;
+      padding: 0 0.75rem;
+      background: var(--navy);
+      color: rgba(255,255,255,0.85);
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      display: inline-flex;
+      align-items: center;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .spacer { flex: 1; }
+
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      height: 34px;
+      padding: 0 1rem;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      white-space: nowrap;
+      transition: opacity 0.15s, background 0.15s;
+    }
+
+    .btn--primary   { background: var(--blue); color: #fff; border: 1px solid var(--blue); }
+    .btn--secondary { background: #fff; color: #374151; border: 1px solid var(--border); }
+    .btn--success   { background: var(--success); color: #fff; border: 1px solid var(--success); }
+    .btn--danger    { background: #fff; color: var(--danger); border: 1px solid #fecaca; }
+    .btn--ghost     { background: transparent; color: var(--text-muted); border: 1px solid transparent; }
+    .btn--icon      { width: 30px; height: 30px; padding: 0; justify-content: center; }
+    .btn:disabled   { opacity: 0.45; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+
+    /* ── Three-column grid ── */
+    .split-3col {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(220px, 28%) 1fr minmax(200px, 26%);
+      gap: 0.875rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card__header {
+      flex-shrink: 0;
+      height: 40px;
+      padding: 0 0.875rem;
+      border-bottom: 1px solid #eef0f5;
+      background: #f8fafd;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card__title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+    }
+
+    .card__body {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 0.875rem;
+    }
+
+    /* ── Magic Clipboard column ── */
+    tiro-magic-clipboard {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      gap: 0.625rem;
+    }
+
+    /* Only style border-radius — let SDK control all other sizing/overflow */
+    .tiro-content-editable-container {
+      border-radius: 0.5rem !important;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Placeholder text for the ContentEditable when empty */
+    .ContentEditable__root:has(> p:only-of-type > br:only-child)::before {
+      content: attr(aria-placeholder);
+      font-size: 13px;
+      color: var(--text-faint);
+      float: left;
+      height: 0;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    tiro-magic-clipboard-button {
+      display: block;
+      width: 100%;
+      padding: 0.55rem 1rem;
+      font-family: "Open Sans", sans-serif;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--blue);
+      border: none;
+      border-radius: 0.4rem;
+      cursor: pointer;
+      text-align: center;
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    tiro-magic-clipboard-button:hover { background: #1d4ed8; }
+    tiro-magic-clipboard-button[data-state="pending"] { opacity: 0.85; cursor: wait; }
+    tiro-magic-clipboard-button[data-state="success"] { background: #16a34a; color: #fff; }
+    tiro-magic-clipboard-button[data-state="error"]   { background: var(--danger); }
+
+    /* Spinner for pending state */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    tiro-magic-clipboard-button[data-state="pending"]::before {
+      content: '';
+      display: inline-block;
+      width: 0.85em;
+      height: 0.85em;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      margin-right: 0.5em;
+      vertical-align: -0.1em;
+    }
+
+    /* ── Form filler column ── */
+    .form-filler-wrapper {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 0.5rem;
+    }
+
+    tiro-form-filler {
+      display: block;
+      width: 100%;
+    }
+
+    /* ── Result column ── */
+    .result-output {
+      font-family: "Open Sans", sans-serif;
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+      min-height: 4rem;
+    }
+
+    .result-output .result-group {
+      font-weight: 700;
+      color: var(--navy);
+      margin-top: 0.4rem;
+      margin-bottom: 0.1rem;
+    }
+
+    .result-output .result-group:first-child { margin-top: 0; }
+
+    .result-output div { line-height: 1.4; }
+
+    .result-empty {
+      color: var(--text-faint);
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    /* ── Data tab ── */
+    .count-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .table-card {
+      flex: 1;
+      min-height: 0;
+    }
+
+    .table-wrapper {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      padding: 0;
+    }
+
+    .empty-state {
+      padding: 3rem;
+      text-align: center;
+      color: var(--text-faint);
+      font-size: 13px;
+    }
+
+    #data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    #data-table th {
+      position: sticky;
+      top: 0;
+      background: #f8fafd;
+      border-bottom: 2px solid var(--border);
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    #data-table td {
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text);
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #data-table tr:last-child td { border-bottom: none; }
+    #data-table tbody tr:hover td { background: #f8fafd; }
+
+    .row-delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+      color: var(--text-faint);
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .row-delete-btn:hover { color: var(--danger); background: #fef2f2; }
+
+    /* ── Add questionnaire modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .modal-overlay[hidden] { display: none; }
+
+    .modal {
+      background: #fff;
+      border-radius: var(--radius);
+      width: 480px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    .modal__header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal__title { font-size: 15px; font-weight: 700; color: var(--text); }
+
+    .modal__body { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.875rem; }
+
+    .modal__footer {
+      padding: 0.875rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      background: #f8fafd;
+    }
+
+    .form-field { display: flex; flex-direction: column; gap: 0.375rem; }
+
+    .form-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
+    .form-input {
+      height: 36px;
+      padding: 0 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .form-input:focus { outline: 2px solid var(--blue); outline-offset: -1px; border-color: transparent; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #1e293b;
+      color: #fff;
+      padding: 0.625rem 1rem;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── PiP content slot ── */
+    #pip-content-slot {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Scrollbar styling ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <a class="header__logo" href="https://tiro.health" target="_blank" rel="noopener noreferrer">
+      <img src="https://cdn.prod.website-files.com/64f4979d1f21b45a5fcfe2d6/64f4a430bca35ec50ea7aff9_logo-blue.png" alt="Tiro Health" />
+    </a>
+    <span class="header__title">BGDO Demo</span>
+  </header>
+
+  <!-- Tab nav -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-target="panel-capture">Invoer</button>
+    <button class="tab-btn" data-target="panel-dataset">
+      Data
+      <span class="badge" id="dataset-badge">0</span>
+    </button>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Capture panel -->
+    <div id="panel-capture" class="panel">
+
+      <!-- Toolbar -->
+      <div class="toolbar-row">
+        <select id="questionnaire-select"></select>
+        <span class="toolbar-label">Registratie ID:</span>
+        <span class="entry-id-chip" id="capture-entry-id">-</span>
+        <div class="spacer"></div>
+        <div class="btn-group">
+          <button class="btn btn--secondary" id="new-record-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+            Nieuw record
+          </button>
+          <button class="btn btn--primary" id="save-record-btn" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Opslaan in dataset
+          </button>
+        </div>
+      </div>
+
+      <!-- Three columns -->
+      <div class="split-3col">
+
+        <!-- Column 1: Magic Clipboard -->
+        <div class="card col-clipboard">
+          <div class="card__header">
+            <span class="card__title">Gebruik tekst als input</span>
+          </div>
+          <div class="card__body" style="display:flex;flex-direction:column;padding:0.75rem;">
+            <tiro-magic-clipboard
+              for="capture-form"
+              hide-toolbar
+              placeholder="Plak hier uw medisch verslag"
+            >
+              <tiro-magic-clipboard-button>Formulier automatisch invullen</tiro-magic-clipboard-button>
+            </tiro-magic-clipboard>
+          </div>
+        </div>
+
+        <!-- Column 2: Questionnaire renderer -->
+        <div class="card col-form" id="col-form-outer">
+          <div class="card__header">
+            <span class="card__title">Formulier</span>
+            <button id="pip-btn" class="btn btn--ghost btn--icon" title="Pop-out formulier">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="15" height="11" rx="2"/><path d="M17 5h5v5"/><path d="M22 5L12 15"/></svg>
+            </button>
+          </div>
+          <div class="form-filler-wrapper" id="col-form-inner">
+            <div id="pip-content-slot">
+              <tiro-form-filler
+                id="capture-form"
+                sdc-endpoint-address="https://sdc.tiro.health/fhir/r5"
+                questionnaire="http://templates.tiro.health/templates/e40bd6a47f4e4d5ba0cea3da4617cee0|1.0.0"
+                compact-grouping
+              ></tiro-form-filler>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 3: Result text -->
+        <div class="card col-result">
+          <div class="card__header">
+            <span class="card__title">Kopieer output tekst</span>
+            <button id="copy-result-btn" class="btn btn--ghost btn--icon" title="Kopieer naar klembord">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            </button>
+          </div>
+          <div class="card__body">
+            <div id="result-text" class="result-output">
+              <span class="result-empty">Vul het formulier in om een samenvatting te zien.</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Data panel -->
+    <div id="panel-dataset" class="panel" hidden>
+      <div class="toolbar-row">
+        <select id="dataset-questionnaire-select"></select>
+        <span id="dataset-count" class="count-label"></span>
+        <div class="spacer"></div>
+        <div class="btn-group">
+          <button class="btn btn--secondary" id="export-csv-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV exporteren
+          </button>
+          <button class="btn btn--secondary" id="export-xlsx-btn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Excel exporteren
+          </button>
+          <button class="btn btn--danger" id="clear-dataset-btn">Wissen</button>
+        </div>
+      </div>
+      <div class="card table-card">
+        <div class="table-wrapper card__body" style="padding:0;">
+          <p id="dataset-empty" class="empty-state">Geen records.</p>
+          <table id="data-table">
+            <thead id="table-head"></thead>
+            <tbody id="table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <script>
+    // ── Constants ──────────────────────────────────────────────────────────────
+    const RECORDS_PFX   = 'tiro_cr_records_';
+    const COUNTER_PFX   = 'tiro_cr_counter_';
+    const ACTIVE_KEY    = 'tiro_cr_active';
+    const QS_CONFIG_KEY = 'tiro_cr_questionnaires';
+
+    const BUILTIN_QUESTIONNAIRES = [
+      {
+        id: 'bgdo',
+        name: 'BGDO MOC Formulier',
+        code: 'BGDO',
+        url: 'http://templates.tiro.health/templates/e40bd6a47f4e4d5ba0cea3da4617cee0|1.0.0',
+        viewDefinition: {
+          resourceType: 'ViewDefinition',
+          name: 'BGDOConsultatie',
+          resource: 'QuestionnaireResponse',
+          select: [
+            { column: [{ path: 'id', name: 'id' }] },
+            { column: [{ path: 'authored', name: 'authored' }] },
+            { column: [{ path: "extension.where(url='http://hl7.org/fhir/StructureDefinition/firstCreated').value", name: 'aangemaakt' }] },
+          ],
+        },
+      },
+    ];
+
+    // ── State ──────────────────────────────────────────────────────────────────
+    let allQuestionnaires = [];
+    let activeQuestionnaireId = null;
+    let currentEntryId = null;
+    let hasChanges = false;
+    let toastTimer = null;
+
+    // ── DOM refs ───────────────────────────────────────────────────────────────
+    const captureForm       = document.getElementById('capture-form');
+    const qsSelect          = document.getElementById('questionnaire-select');
+    const datasetQsSelect   = document.getElementById('dataset-questionnaire-select');
+    const entryIdChip       = document.getElementById('capture-entry-id');
+    const resultText        = document.getElementById('result-text');
+    const saveBtn           = document.getElementById('save-record-btn');
+    const newBtn            = document.getElementById('new-record-btn');
+    const pipBtn            = document.getElementById('pip-btn');
+    const copyBtn           = document.getElementById('copy-result-btn');
+    const datasetBadge      = document.getElementById('dataset-badge');
+    const datasetCount      = document.getElementById('dataset-count');
+    const tableHead         = document.getElementById('table-head');
+    const tableBody         = document.getElementById('table-body');
+    const datasetEmpty      = document.getElementById('dataset-empty');
+    const dataTable         = document.getElementById('data-table');
+    const exportCsvBtn      = document.getElementById('export-csv-btn');
+    const exportXlsxBtn     = document.getElementById('export-xlsx-btn');
+    const clearDatasetBtn   = document.getElementById('clear-dataset-btn');
+    const toast             = document.getElementById('toast');
+
+    // ── Toast ──────────────────────────────────────────────────────────────────
+    function showToast(message, duration = 2800) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // ── Storage helpers ────────────────────────────────────────────────────────
+    function getRecords(qsId) {
+      try {
+        return JSON.parse(localStorage.getItem(RECORDS_PFX + qsId) || '[]');
+      } catch { return []; }
+    }
+
+    function saveRecords(qsId, records) {
+      localStorage.setItem(RECORDS_PFX + qsId, JSON.stringify(records));
+    }
+
+    function getTotalRecordCount() {
+      return allQuestionnaires.reduce((sum, qs) => sum + getRecords(qs.id).length, 0);
+    }
+
+    function generateEntryId(qs) {
+      const key = COUNTER_PFX + qs.id;
+      const count = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+      localStorage.setItem(key, String(count));
+      const year = new Date().getFullYear();
+      return `${qs.code}-${year}-${String(count).padStart(5, '0')}`;
+    }
+
+    // ── Questionnaire management ───────────────────────────────────────────────
+    function loadQuestionnaires() {
+      let user = [];
+      try { user = JSON.parse(localStorage.getItem(QS_CONFIG_KEY) || '[]'); } catch {}
+      allQuestionnaires = [...BUILTIN_QUESTIONNAIRES, ...user];
+    }
+
+    function saveUserQuestionnaires() {
+      const user = allQuestionnaires.filter(q => !BUILTIN_QUESTIONNAIRES.find(b => b.id === q.id));
+      localStorage.setItem(QS_CONFIG_KEY, JSON.stringify(user));
+    }
+
+    function populateSelects() {
+      [qsSelect, datasetQsSelect].forEach(sel => {
+        const prev = sel.value;
+        sel.innerHTML = '';
+        allQuestionnaires.forEach(qs => {
+          const opt = document.createElement('option');
+          opt.value = qs.id;
+          opt.textContent = qs.name;
+          sel.appendChild(opt);
+        });
+        if (prev && allQuestionnaires.find(q => q.id === prev)) sel.value = prev;
+      });
+    }
+
+    function getActiveQs() {
+      return allQuestionnaires.find(q => q.id === activeQuestionnaireId);
+    }
+
+    function activateQuestionnaire(qsId, isSwitch = false) {
+      activeQuestionnaireId = qsId;
+      localStorage.setItem(ACTIVE_KEY, qsId);
+      qsSelect.value = qsId;
+
+      const qs = getActiveQs();
+      if (!qs) return;
+
+      // Re-set the attribute to force the SDK to reload the questionnaire.
+      // Removing then re-adding is the safest way to reset state.
+      if (isSwitch) captureForm.removeAttribute('questionnaire');
+      captureForm.setAttribute('questionnaire', qs.url);
+      resultText.innerHTML = '<span class="result-empty">Vul het formulier in om een samenvatting te zien.</span>';
+      currentEntryId = generateEntryId(qs);
+      entryIdChip.textContent = currentEntryId;
+      hasChanges = false;
+      saveBtn.disabled = true;
+    }
+
+    // ── Result text rendering ──────────────────────────────────────────────────
+    function getAnswerDisplayValue(answer) {
+      if (answer.valueCoding)              return answer.valueCoding.display || answer.valueCoding.code;
+      if (answer.valueString)              return answer.valueString;
+      if (answer.valueDecimal !== undefined) return String(answer.valueDecimal);
+      if (answer.valueInteger !== undefined) return String(answer.valueInteger);
+      if (answer.valueBoolean !== undefined) return answer.valueBoolean ? 'Ja' : 'Nee';
+      if (answer.valueDate)                return answer.valueDate;
+      if (answer.valueDateTime)            return answer.valueDateTime;
+      if (answer.valueQuantity)            return `${answer.valueQuantity.value} ${answer.valueQuantity.unit || ''}`.trim();
+      return '';
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function hasAnyAnswer(items) {
+      for (const item of items) {
+        if (item.answer?.length) {
+          const vals = item.answer.map(a => getAnswerDisplayValue(a)).filter(Boolean);
+          if (vals.length) return true;
+        }
+        if (item.item && hasAnyAnswer(item.item)) return true;
+      }
+      return false;
+    }
+
+    function renderQRToHTML(qr) {
+      if (!qr || !qr.item) return '';
+      const parts = [];
+
+      function walk(items) {
+        for (const item of items) {
+          if (item.item && item.item.length) {
+            if (!hasAnyAnswer(item.item)) continue;
+            if (item.text) parts.push(`<div class="result-group">${escapeHtml(item.text)}</div>`);
+            walk(item.item);
+          } else if (item.answer?.length) {
+            const values = item.answer.map(a => getAnswerDisplayValue(a)).filter(Boolean).join(', ');
+            if (values) {
+              const label = escapeHtml(item.text || item.linkId);
+              parts.push(`<div><span style="color:var(--text-muted)">${label}:</span> ${escapeHtml(values)}</div>`);
+            }
+          }
+        }
+      }
+
+      walk(qr.item);
+      return parts.join('');
+    }
+
+    function renderQRToPlainText(qr) {
+      if (!qr || !qr.item) return '';
+      const lines = [];
+
+      function walk(items, depth) {
+        for (const item of items) {
+          const indent = '  '.repeat(depth);
+          if (item.item && item.item.length) {
+            if (!hasAnyAnswer(item.item)) continue;
+            if (item.text) lines.push(`${indent}${item.text}`);
+            walk(item.item, depth + 1);
+          } else if (item.answer?.length) {
+            const values = item.answer.map(a => getAnswerDisplayValue(a)).filter(Boolean).join(', ');
+            if (values) lines.push(`${indent}${item.text || item.linkId}: ${values}`);
+          }
+        }
+      }
+
+      walk(qr.item, 0);
+      return lines.join('\n');
+    }
+
+    // ── tiro-update ───────────────────────────────────────────────────
+    captureForm.addEventListener('tiro-update', (e) => {
+      const qr = e.detail?.response ?? e.detail?.questionnaireResponse ?? e.detail;
+      if (!qr || !qr.resourceType) return;
+
+      const html = renderQRToHTML(qr);
+      if (html.trim()) {
+        resultText.innerHTML = html;
+      } else {
+        resultText.innerHTML = '<span class="result-empty">Vul het formulier in om een samenvatting te zien.</span>';
+      }
+
+      hasChanges = true;
+      saveBtn.disabled = false;
+    });
+
+    captureForm.addEventListener('tiro-error', (e) => {
+      showToast('Formulier fout: ' + (e.detail?.message || e.detail || 'onbekend'), 4000);
+    });
+
+    // ── tiro-populate-error ────────────────────────────────────────────────────
+    document.querySelector('tiro-magic-clipboard').addEventListener('tiro-populate-error', (e) => {
+      showToast('Fout bij automatisch invullen: ' + (e.detail?.message || 'onbekende fout'));
+    });
+
+    // ── Copy result ────────────────────────────────────────────────────────────
+    copyBtn.addEventListener('click', async () => {
+      const qs = getActiveQs();
+      if (!qs) return;
+      const filler = captureForm;
+      let text = '';
+      try {
+        const qr = await filler.getResponse();
+        text = renderQRToPlainText(qr);
+      } catch {
+        text = resultText.innerText;
+      }
+      if (!text.trim()) return;
+      await navigator.clipboard.writeText(text);
+      showToast('Gekopieerd naar klembord.');
+    });
+
+    // ── New record ─────────────────────────────────────────────────────────────
+    newBtn.addEventListener('click', async () => {
+      const qs = getActiveQs();
+      if (!qs) return;
+      // Re-set the questionnaire attribute to get a fresh blank response
+      captureForm.removeAttribute('questionnaire');
+      captureForm.setAttribute('questionnaire', qs.url);
+      resultText.innerHTML = '<span class="result-empty">Vul het formulier in om een samenvatting te zien.</span>';
+      currentEntryId = generateEntryId(qs);
+      entryIdChip.textContent = currentEntryId;
+      hasChanges = false;
+      saveBtn.disabled = true;
+    });
+
+    // ── Save record ────────────────────────────────────────────────────────────
+    saveBtn.addEventListener('click', async () => {
+      const qs = getActiveQs();
+      if (!qs) return;
+
+      let qr;
+      try {
+        qr = await captureForm.getResponse();
+      } catch (err) {
+        showToast('Fout bij ophalen formulier.');
+        return;
+      }
+
+      qr._entryId = currentEntryId;
+      if (!qr.meta) qr.meta = {};
+      if (!qr.meta.extension) qr.meta.extension = [];
+      const existing = qr.meta.extension.find(e => e.url === 'http://hl7.org/fhir/StructureDefinition/firstCreated');
+      if (!existing) {
+        qr.meta.extension.push({
+          url: 'http://hl7.org/fhir/StructureDefinition/firstCreated',
+          valueInstant: new Date().toISOString(),
+        });
+      }
+
+      const records = getRecords(qs.id);
+      const idx = records.findIndex(r => r._entryId === currentEntryId);
+      if (idx >= 0) records[idx] = qr;
+      else records.push(qr);
+
+      saveRecords(qs.id, records);
+      updateBadge();
+      showToast('Record opgeslagen.');
+      saveBtn.disabled = false;
+    });
+
+    // ── Badge ──────────────────────────────────────────────────────────────────
+    function updateBadge() {
+      const total = getTotalRecordCount();
+      datasetBadge.textContent = String(total);
+    }
+
+    // ── Tab switching ──────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const target = btn.dataset.target;
+        document.querySelectorAll('.panel').forEach(p => {
+          if (p.id === target) p.removeAttribute('hidden');
+          else p.setAttribute('hidden', '');
+        });
+        if (target === 'panel-dataset') renderDataTable();
+      });
+    });
+
+    // ── Data tab ───────────────────────────────────────────────────────────────
+    function collectAnswers(items, result, prefix) {
+      if (!items) return;
+      for (const item of items) {
+        const key = prefix ? `${prefix} / ${item.text || item.linkId}` : (item.text || item.linkId);
+        if (item.answer && item.answer.length) {
+          result[key] = item.answer.map(getAnswerDisplayValue).filter(Boolean).join(' | ');
+        }
+        if (item.item) collectAnswers(item.item, result, key);
+      }
+    }
+
+    function extractGenericRow(qr) {
+      const row = { 'ID': qr._entryId || qr.id || '', 'Aangemaakt': qr.authored || '' };
+      collectAnswers(qr.item, row, '');
+      return row;
+    }
+
+    function extractRows(qsId) {
+      const records = getRecords(qsId);
+      if (!records.length) return [];
+      const qs = allQuestionnaires.find(q => q.id === qsId);
+
+      if (qs?.viewDefinition && window.sof) {
+        try {
+          const vd = qs.viewDefinition;
+          const rows = records.map(qr => {
+            try {
+              const result = window.sof.runViewDefinition(vd, [qr]);
+              const row = result[0] || {};
+              row['ID'] = qr._entryId || row.id || qr.id || '';
+              return row;
+            } catch {
+              return extractGenericRow(qr);
+            }
+          });
+          return rows;
+        } catch {
+          // fall through to generic
+        }
+      }
+
+      return records.map(extractGenericRow);
+    }
+
+    function renderDataTable() {
+      const qsId = datasetQsSelect.value || activeQuestionnaireId;
+      const records = getRecords(qsId);
+      const count = records.length;
+      datasetCount.textContent = `${count} record${count !== 1 ? 's' : ''}`;
+
+      if (!count) {
+        datasetEmpty.removeAttribute('hidden');
+        dataTable.setAttribute('hidden', '');
+        tableHead.innerHTML = '';
+        tableBody.innerHTML = '';
+        return;
+      }
+
+      const rows = extractRows(qsId);
+      if (!rows.length) {
+        datasetEmpty.removeAttribute('hidden');
+        dataTable.setAttribute('hidden', '');
+        return;
+      }
+
+      datasetEmpty.setAttribute('hidden', '');
+      dataTable.removeAttribute('hidden');
+
+      const cols = [...new Set(rows.flatMap(r => Object.keys(r)))];
+
+      const trashIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+      tableHead.innerHTML = `<tr><th style="width:36px"></th>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+      tableBody.innerHTML = records.map((record, idx) => {
+        const row = rows[idx];
+        const entryId = record._entryId || record.id || idx;
+        return `<tr data-entry-id="${escapeHtml(String(entryId))}">
+          <td><button class="row-delete-btn" title="Verwijder record">${trashIcon}</button></td>
+          ${cols.map(c => `<td title="${escapeHtml(String(row[c] ?? ''))}">${escapeHtml(String(row[c] ?? ''))}</td>`).join('')}
+        </tr>`;
+      }).join('');
+    }
+
+    datasetQsSelect.addEventListener('change', renderDataTable);
+
+    tableBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.row-delete-btn');
+      if (!btn) return;
+      const row = btn.closest('tr');
+      const entryId = row?.dataset.entryId;
+      if (!entryId) return;
+      const qsId = datasetQsSelect.value || activeQuestionnaireId;
+      const records = getRecords(qsId).filter(r => String(r._entryId || r.id) !== entryId);
+      saveRecords(qsId, records);
+      updateBadge();
+      renderDataTable();
+    });
+
+    // ── Export ─────────────────────────────────────────────────────────────────
+    function getExportData() {
+      const qsId = datasetQsSelect.value || activeQuestionnaireId;
+      return extractRows(qsId);
+    }
+
+    exportCsvBtn.addEventListener('click', () => {
+      const rows = getExportData();
+      if (!rows.length) { showToast('Geen gegevens om te exporteren.'); return; }
+      const cols = [...new Set(rows.flatMap(r => Object.keys(r)))];
+      const csv = [cols.join(','), ...rows.map(r => cols.map(c => JSON.stringify(r[c] ?? '')).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `export_${datasetQsSelect.value}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('CSV gedownload.');
+    });
+
+    exportXlsxBtn.addEventListener('click', () => {
+      if (!window.XLSX) { showToast('SheetJS niet geladen.'); return; }
+      const rows = getExportData();
+      if (!rows.length) { showToast('Geen gegevens om te exporteren.'); return; }
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Data');
+      XLSX.writeFile(wb, `export_${datasetQsSelect.value}_${new Date().toISOString().slice(0,10)}.xlsx`);
+      showToast('Excel gedownload.');
+    });
+
+    clearDatasetBtn.addEventListener('click', () => {
+      const qsId = datasetQsSelect.value || activeQuestionnaireId;
+      const qs = allQuestionnaires.find(q => q.id === qsId);
+      if (!confirm(`Weet je zeker dat je alle records van "${qs?.name || qsId}" wilt verwijderen?`)) return;
+      localStorage.removeItem(RECORDS_PFX + qsId);
+      updateBadge();
+      renderDataTable();
+      showToast('Dataset gewist.');
+    });
+
+    // ── PiP ────────────────────────────────────────────────────────────────────
+    const colFormInner   = document.getElementById('col-form-inner');
+    const pipContentSlot = document.getElementById('pip-content-slot');
+
+    if (!('documentPictureInPicture' in window)) {
+      pipBtn.title = 'Picture-in-Picture niet ondersteund in deze browser';
+    }
+
+    pipBtn.addEventListener('click', async () => {
+      if (!('documentPictureInPicture' in window)) {
+        showToast('Picture-in-Picture wordt niet ondersteund in deze browser.');
+        return;
+      }
+      try {
+        const pip = await window.documentPictureInPicture.requestWindow({ width: 500, height: 720 });
+
+        // Copy all styles into the PiP window
+        [...document.styleSheets].forEach(sheet => {
+          try {
+            const style = pip.document.createElement('style');
+            style.textContent = [...sheet.cssRules].map(r => r.cssText).join('\n');
+            pip.document.head.appendChild(style);
+          } catch {}
+        });
+
+        // PiP body fills the window and hands all space to the slot
+        Object.assign(pip.document.documentElement.style, { height: '100%', margin: '0' });
+        Object.assign(pip.document.body.style, {
+          margin: '0', padding: '0', height: '100%',
+          display: 'flex', flexDirection: 'column', background: '#fff', overflow: 'hidden',
+        });
+
+        pip.document.body.appendChild(pipContentSlot);
+
+        // tiro-form-filler fills the PiP window
+        const ff = pip.document.getElementById('capture-form');
+        if (ff) Object.assign(ff.style, { flex: '1', minHeight: '0', overflow: 'auto' });
+
+        pip.addEventListener('pagehide', () => {
+          colFormInner.appendChild(pipContentSlot);
+          // Reset any inline styles added for PiP
+          const ff2 = colFormInner.querySelector('#capture-form');
+          if (ff2) ff2.style.cssText = '';
+        });
+      } catch (err) {
+        showToast('PiP kon niet worden geopend: ' + (err.message || 'onbekende fout'));
+      }
+    });
+
+    // ── Questionnaire select change ────────────────────────────────────────────
+    qsSelect.addEventListener('change', () => {
+      activateQuestionnaire(qsSelect.value, true);
+    });
+
+    // ── Initialisation ─────────────────────────────────────────────────────────
+    function init() {
+      loadQuestionnaires();
+      populateSelects();
+      updateBadge();
+
+      const saved = localStorage.getItem(ACTIVE_KEY);
+      const firstId = allQuestionnaires[0]?.id;
+      const startId = (saved && allQuestionnaires.find(q => q.id === saved)) ? saved : firstId;
+
+      // Set up UI state immediately — the questionnaire attribute is already in HTML,
+      // so the SDK will pick it up on upgrade without needing JS to set it first.
+      if (startId) activateQuestionnaire(startId);
+    }
+
+    init();
+  </script>
+
+  <!-- Tiro Web SDK — loaded after DOM so magic clipboard can resolve `for` target synchronously -->
+  <script src="https://cdn.tiro.health/sdk/next/tiro-web-sdk.iife.js"></script>
+</body>
+</html>
