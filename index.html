@@ -295,7 +295,8 @@
     tiro-magic-clipboard {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      flex: 1;
+      min-height: 0;
       gap: 0.625rem;
     }
 
@@ -304,6 +305,14 @@
       flex: 1;
       min-height: 0;
       overflow-y: auto !important;
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    .tiro-content-editable-container:focus,
+    .tiro-content-editable-container:focus-within {
+      outline: none !important;
+      box-shadow: none !important;
     }
 
     tiro-magic-clipboard .editor-scroller {
